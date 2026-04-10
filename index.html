@@ -1,35 +1,52 @@
-const TOKEN = 'cfut_n2nGhAQcpuMdpNTiyrJlb8MaM2YQf54RpOPhQJB7ddd0bacc';
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Mayteck | Cloudflare Dashboard</title>
+    <style>
+        body { font-family: sans-serif; background: #0f172a; color: white; padding: 2rem; }
+        .acc-box { margin-bottom: 25px; border: 1px solid #334155; border-radius: 8px; overflow: hidden; }
+        .acc-name { background: #334155; padding: 10px; font-weight: bold; font-size: 0.8rem; color: #94a3b8; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1px; background: #334155; }
+        .card { background: #1e293b; padding: 15px; display: flex; justify-content: space-between; align-items: center; }
+        .status { color: #4ade80; font-size: 0.7rem; font-weight: bold; text-transform: uppercase; }
+        .err-msg { background: #421; color: #f88; padding: 20px; border-radius: 8px; border: 1px solid #f88; }
+    </style>
+</head>
+<body>
+    <h1 style="color:#f6821f">Cloudflare Dashboard</h1>
+    <div id="dash">Loading domains...</div>
 
-export default {
-  async fetch(request) {
-    const corsHeaders = {
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "GET, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, Authorization",
-    };
+    <script>
+        const WORKER_URL = 'https://workera1.mm-5c7.workers.dev/'; 
 
-    if (request.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+        async function load() {
+            const dash = document.getElementById('dash');
+            try {
+                const res = await fetch(WORKER_URL);
+                const data = await res.json();
 
-    try {
-      const headers = { 'Authorization': `Bearer ${TOKEN}`, 'Content-Type': 'application/json' };
+                if (data.error) {
+                    dash.innerHTML = `<div class="err-msg"><strong>Worker Error:</strong> ${data.error}</div>`;
+                    return;
+                }
 
-      // Get Accounts
-      const accRes = await fetch('https://api.cloudflare.com/client/v4/accounts', { headers });
-      const accJson = await accRes.json();
-      
-      if (!accJson.success) return new Response(JSON.stringify({error: accJson.errors[0].message}), {status: 401, headers: corsHeaders});
-
-      let results = [];
-      for (const acc of accJson.result) {
-        // Get Zones
-        const zoneRes = await fetch(`https://api.cloudflare.com/client/v4/zones?account.id=${acc.id}`, { headers });
-        const zoneJson = await zoneRes.json();
-        results.push({ name: acc.name, id: acc.id, zones: zoneJson.result || [] });
-      }
-
-      return new Response(JSON.stringify(results), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    } catch (e) {
-      return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: corsHeaders });
-    }
-  }
-};
+                dash.innerHTML = '';
+                data.forEach(acc => {
+                    const section = document.createElement('div');
+                    section.className = 'acc-box';
+                    section.innerHTML = `<div class="acc-name">${acc.name}</div><div class="grid" id="g-${acc.id}"></div>`;
+                    dash.appendChild(section);
+                    
+                    const grid = document.getElementById(`g-${acc.id}`);
+                    acc.zones.forEach(z => {
+                        grid.innerHTML += `<div class="card"><span>${z.name}</span><span class="status">${z.status}</span></div>`;
+                    });
+                });
+            } catch (e) {
+                dash.innerHTML = `<div class="err-msg"><strong>Page Error:</strong> ${e.message}</div>`;
+            }
+        }
+        load();
+    </script>
+</body>
+</html>
